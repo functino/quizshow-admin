@@ -28,11 +28,11 @@ export default function DashboardCharts({ data }: Props) {
     if (userInstanceRef.current) userInstanceRef.current.dispose();
     if (quizInstanceRef.current) quizInstanceRef.current.dispose();
 
-    // Current month projection
+    // Current month projection (use UTC to match PostgreSQL DATE_TRUNC)
     const now = new Date();
-    const currentMonthTs = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-    const dayOfMonth = now.getDate();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const currentMonthTs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+    const dayOfMonth = now.getUTCDate();
+    const daysInMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate();
     const monthFraction = dayOfMonth / daysInMonth;
 
     // Build confirmed lookup
