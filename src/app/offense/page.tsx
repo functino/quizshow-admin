@@ -1,4 +1,5 @@
 import { query } from '@/lib/db';
+import { Card, CardContent } from '@/components/ui/card';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,52 +34,40 @@ export default async function OffensePage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-bold text-white">No Offense</h1>
+      <h1 className="text-lg font-semibold">No Offense</h1>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-700 text-xs text-gray-400 uppercase">
-              <th className="px-3 py-2 text-left">Prompt</th>
-              <th className="px-3 py-2 text-left" colSpan={2}>Answers</th>
-            </tr>
-          </thead>
-          <tbody>
-            {prompts.map((p: Record<string, unknown>, i: number) => {
-              const totalVotes = Number(p.votes1 || 0) + Number(p.votes2 || 0);
-              const pct1 = totalVotes > 0 ? Math.round((Number(p.votes1 || 0) / totalVotes) * 100) : 0;
-              const pct2 = totalVotes > 0 ? Math.round((Number(p.votes2 || 0) / totalVotes) * 100) : 0;
-              const date = p.prompt_date
-                ? new Date(Number(p.prompt_date)).toLocaleString('en-GB')
-                : '-';
+      <div className="space-y-3">
+        {prompts.map((p: Record<string, unknown>, i: number) => {
+          const totalVotes = Number(p.votes1 || 0) + Number(p.votes2 || 0);
+          const pct1 = totalVotes > 0 ? Math.round((Number(p.votes1 || 0) / totalVotes) * 100) : 0;
+          const pct2 = totalVotes > 0 ? Math.round((Number(p.votes2 || 0) / totalVotes) * 100) : 0;
+          const date = p.prompt_date
+            ? new Date(Number(p.prompt_date)).toLocaleString('en-GB')
+            : '-';
 
-              return (
-                <tr key={i} className="border-b border-gray-800">
-                  <td className="px-3 py-2" colSpan={2}>
-                    <div className="font-bold text-white">{p.prompt as string}</div>
-                    <div className="text-xs text-gray-500 mt-1">Shown: {date}</div>
-                  </td>
-                  <td className="px-3 py-2" colSpan={2}>
-                    <div className="grid grid-cols-2 gap-4 mt-2">
-                      <div className="bg-gray-800/50 p-2 rounded">
-                        <div>{p.answer1 as string}</div>
-                        <div className="text-xs text-gray-400 mt-1">
-                          {p.votes1 as number} votes ({pct1}%)
-                        </div>
-                      </div>
-                      <div className="bg-gray-800/50 p-2 rounded">
-                        <div>{p.answer2 as string}</div>
-                        <div className="text-xs text-gray-400 mt-1">
-                          {p.votes2 as number} votes ({pct2}%)
-                        </div>
-                      </div>
+          return (
+            <Card key={i}>
+              <CardContent>
+                <div className="font-medium mb-1">{p.prompt as string}</div>
+                <div className="text-xs text-muted-foreground mb-3">Shown: {date}</div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-muted/50 p-3 rounded-lg">
+                    <div className="text-sm">{p.answer1 as string}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {p.votes1 as number} votes ({pct1}%)
                     </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  </div>
+                  <div className="bg-muted/50 p-3 rounded-lg">
+                    <div className="text-sm">{p.answer2 as string}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {p.votes2 as number} votes ({pct2}%)
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

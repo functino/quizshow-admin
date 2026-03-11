@@ -13,14 +13,14 @@ export default async function EditPlanPage({ params }: Props) {
   const [plan] = await query('SELECT * FROM plans WHERE id = $1', [id]);
 
   if (!plan) {
-    return <div className="text-red-400">Plan not found</div>;
+    return <div className="text-destructive">Plan not found</div>;
   }
 
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-4">
-        <Link href="/plans" className="text-gray-400 hover:text-white text-sm">&larr; Back to Plans</Link>
-        <h1 className="text-lg font-bold text-white">Edit Plan: {plan.name as string}</h1>
+        <Link href="/plans" className="text-muted-foreground hover:text-foreground text-sm">&larr; Back to Plans</Link>
+        <h1 className="text-lg font-semibold">Edit Plan: {plan.name as string}</h1>
       </div>
 
       <PlanEditForm plan={plan} />

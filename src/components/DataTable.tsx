@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { Table, TableHeader, TableHead, TableBody, TableRow } from '@/components/ui/table';
 
 interface DataTableProps {
   headers: string[];
@@ -8,20 +9,18 @@ interface DataTableProps {
 
 export default function DataTable({ headers, children, title }: DataTableProps) {
   return (
-    <div className="overflow-x-auto">
-      {title && <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">{title}</h3>}
-      <table className="w-full text-sm text-left">
-        <thead>
-          <tr className="border-b border-gray-700">
+    <div>
+      {title && <h3 className="text-sm font-medium text-muted-foreground mb-2">{title}</h3>}
+      <Table>
+        <TableHeader>
+          <TableRow>
             {headers.map((h, i) => (
-              <th key={i} className="px-3 py-2 text-xs text-gray-400 uppercase tracking-wide font-medium">
-                {h}
-              </th>
+              <TableHead key={i} className="text-xs">{h}</TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-800">{children}</tbody>
-      </table>
+          </TableRow>
+        </TableHeader>
+        <TableBody>{children}</TableBody>
+      </Table>
     </div>
   );
 }

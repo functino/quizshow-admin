@@ -12,11 +12,16 @@ export async function GET() {
     ORDER BY u.id
   `);
 
+  const esc = (v: unknown) => {
+    if (v == null) return '';
+    const s = String(v);
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+  const ts = (d: unknown) => d ? Math.floor(new Date(d as string).getTime() / 1000) : '';
   const lines = ['user_id,name,email,created_at,confirmed_at,last_active_at,plan,quiz_count,language'];
   for (const u of users) {
-    const ts = (d: unknown) => d ? Math.floor(new Date(d as string).getTime() / 1000) : '';
-    const name = ((u.name as string) || (u.email as string)).replace(/"/g, '""');
-    lines.push(`${u.id},"${name}",${u.email},${ts(u.created_at)},${ts(u.confirmed_at)},${ts(u.last_active_at)},${u.plan || ''},${u.quiz_count},${u.language || ''}`);
+    lines.push([u.id, esc(u.name || u.email), esc(u.email), ts(u.created_at), ts(u.confirmed_at), ts(u.last_active_at), esc(u.plan), u.quiz_count, esc(u.language)].join(','));
   }
 
   return new NextResponse(lines.join('\n'), {

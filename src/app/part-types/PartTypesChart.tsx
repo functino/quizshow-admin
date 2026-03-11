@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef } from 'react';
+import * as echarts from 'echarts';
 
 interface DataPoint {
   type: string;
@@ -8,92 +9,96 @@ interface DataPoint {
 }
 
 const COLORS = [
-  '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6',
-  '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#a855f7',
+  '#66af1f', '#2893da', '#e16070', '#f2b654',
+  '#772eb9', '#41b7cc', '#e8873d', '#efc663',
+  '#e34439', '#65af1e',
 ];
 
 export default function PartTypesChart({ data, types }: { data: DataPoint[]; types: string[] }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const instanceRef = useRef<echarts.ECharts | null>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || data.length === 0) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!chartRef.current || data.length === 0) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = 250 * dpr;
-    ctx.scale(dpr, dpr);
+    if (instanceRef.current) instanceRef.current.dispose();
 
-    const w = rect.width;
-    const h = 250;
-    const padding = { top: 30, right: 120, bottom: 25, left: 50 };
-    const chartW = w - padding.left - padding.right;
-    const chartH = h - padding.top - padding.bottom;
-
-    ctx.clearRect(0, 0, w, h);
-
-    // Title
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = 'bold 13px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Part Types (12 months)', w / 2, 18);
-
-    // Group by month
-    const months = [...new Set(data.map((d) => d.date))].sort();
-    if (months.length === 0) return;
-
-    // Compute stacked totals per month
-    const monthTotals = months.map((m) => {
-      const items = data.filter((d) => d.date === m);
-      return items.reduce((s, i) => s + i.count, 0);
+    // Group by date
+    const allDates = [...new Set(data.map(d => d.date))].sort();
+    const seriesByType: Record<string, Record<number, number>> = {};
+    data.forEach(d => {
+      seriesByType[d.type] = seriesByType[d.type] || {};
+      seriesByType[d.type][d.date] = d.count;
     });
-    const maxTotal = Math.max(...monthTotals, 1);
-    const barWidth = Math.max(2, chartW / months.length - 2);
 
-    // Draw stacked bars
-    months.forEach((month, mi) => {
-      const x = padding.left + (mi / months.length) * chartW;
-      let yOffset = 0;
-
-      types.forEach((type, ti) => {
-        const item = data.find((d) => d.date === month && d.type === type);
-        const count = item?.count || 0;
-        const barH = (count / maxTotal) * chartH;
-
-        ctx.fillStyle = COLORS[ti % COLORS.length];
-        ctx.fillRect(x, padding.top + chartH - yOffset - barH, barWidth, barH);
-        yOffset += barH;
+    // Compute totals per date
+    const totals: Record<number, number> = {};
+    allDates.forEach(date => {
+      totals[date] = 0;
+      Object.values(seriesByType).forEach(dataObj => {
+        totals[date] += dataObj[date] || 0;
       });
-
-      // X label every 2 months
-      if (mi % 2 === 0) {
-        const date = new Date(month);
-        ctx.fillStyle = '#6b7280';
-        ctx.font = '9px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(
-          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
-          x + barWidth / 2,
-          h - 5,
-        );
-      }
     });
 
-    // Legend
-    const legendX = w - padding.right + 10;
-    types.forEach((type, i) => {
-      const y = padding.top + i * 18;
-      ctx.fillStyle = COLORS[i % COLORS.length];
-      ctx.fillRect(legendX, y, 10, 10);
-      ctx.fillStyle = '#9ca3af';
-      ctx.font = '10px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(type, legendX + 14, y + 9);
+    // Build percentage-based series
+    const seriesData = types.map((type, index) => ({
+      name: type,
+      type: 'bar' as const,
+      stack: 'total',
+      data: allDates.map(date => {
+        const abs = seriesByType[type]?.[date] || 0;
+        const total = totals[date];
+        const pct = total === 0 ? 0 : (abs / total) * 100;
+        return [date, pct];
+      }),
+      itemStyle: { color: COLORS[index % COLORS.length] },
+    }));
+
+    instanceRef.current = echarts.init(chartRef.current);
+    instanceRef.current.setOption({
+      title: {
+        text: 'Part types usage over time (%)',
+        left: 'center',
+        top: 10,
+        textStyle: { fontSize: 14, fontWeight: 'bold' },
+      },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter: (params: unknown) => {
+          const items = params as { value: number[]; marker: string; seriesName: string }[];
+          let result = new Date(items[0].value[0]).toLocaleDateString() + '<br/>';
+          items.forEach(item => {
+            result += item.marker + ' ' + item.seriesName + ': ' + item.value[1].toFixed(1) + '%<br/>';
+          });
+          return result;
+        },
+      },
+      legend: {
+        top: 40,
+        type: 'scroll',
+      },
+      grid: { left: '3%', right: '4%', top: 80, bottom: '3%', containLabel: true },
+      xAxis: {
+        type: 'time',
+      },
+      yAxis: {
+        type: 'value',
+        axisLabel: { formatter: '{value}%' },
+        splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
+        max: 100,
+      },
+      series: seriesData,
     });
+
+    const handleResize = () => instanceRef.current?.resize();
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      instanceRef.current?.dispose();
+    };
   }, [data, types]);
 
-  return <canvas ref={canvasRef} className="w-full" height={250} />;
+  return <div ref={chartRef} style={{ height: 350 }} />;
 }

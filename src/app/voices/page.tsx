@@ -1,5 +1,7 @@
 import { query } from '@/lib/db';
-import Link from 'next/link';
+import { Card, CardContent } from '@/components/ui/card';
+import { Table, TableHeader, TableHead, TableBody } from '@/components/ui/table';
+import VoiceDetails from './VoiceDetails';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,36 +36,41 @@ export default async function VoicesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-bold text-white">Quizzes with Voice Features</h1>
+      <h1 className="text-lg font-semibold">Quizzes with Voice Features</h1>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-700 text-xs text-gray-400 uppercase">
-              <th className="px-3 py-2 text-left">ID</th>
-              <th className="px-3 py-2 text-left">Name</th>
-              <th className="px-3 py-2 text-right">Total</th>
-              <th className="px-3 py-2 text-right">TTS</th>
-              <th className="px-3 py-2 text-right">Library</th>
-              <th className="px-3 py-2 text-right">Record</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-800">
-            {voiceQuizzes.map((q: Record<string, unknown>) => (
-              <tr key={q.id as number} className="hover:bg-gray-800/50">
-                <td className="px-3 py-2">
-                  <Link href={`/quizzes/${q.id}/peek`} className="text-blue-400 hover:underline">{q.id as number}</Link>
-                </td>
-                <td className="px-3 py-2">{q.name as string}</td>
-                <td className="px-3 py-2 text-right font-bold">{q.total_voice_features as number}</td>
-                <td className="px-3 py-2 text-right">{q.tts_count as number}</td>
-                <td className="px-3 py-2 text-right">{q.library_count as number}</td>
-                <td className="px-3 py-2 text-right">{q.record_count as number}</td>
+      <Card>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <tr>
+                <TableHead>ID</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">TTS</TableHead>
+                <TableHead className="text-right">Library</TableHead>
+                <TableHead className="text-right">Record</TableHead>
+                <TableHead className="text-center w-12"></TableHead>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {voiceQuizzes.map((q: Record<string, unknown>) => (
+                <VoiceDetails
+                  key={q.id as number}
+                  quiz={{
+                    id: q.id as number,
+                    name: q.name as string,
+                    total_voice_features: Number(q.total_voice_features),
+                    tts_count: Number(q.tts_count),
+                    library_count: Number(q.library_count),
+                    record_count: Number(q.record_count),
+                    data: q.data as { parts: { audio?: { voiceQuestion?: { src?: string; source?: string; text?: string }; voiceAnswers?: { src?: string; source?: string; text?: string }; voiceSolution?: { src?: string; source?: string; text?: string } } }[] },
+                  }}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

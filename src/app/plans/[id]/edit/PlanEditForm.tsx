@@ -1,5 +1,9 @@
 'use client';
 import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 
 interface Props {
   plan: Record<string, unknown>;
@@ -68,90 +72,93 @@ export default function PlanEditForm({ plan }: Props) {
 
   const renderFeatures = (lang: 'de' | 'en', features: string[]) => (
     <div className="space-y-2">
-      <label className="text-sm text-gray-400">Features ({lang.toUpperCase()})</label>
+      <Label>Features ({lang.toUpperCase()})</Label>
       {features.map((f, i) => (
         <div key={i} className="flex gap-2">
           <textarea
             value={f}
             onChange={(e) => updateFeature(lang, i, e.target.value)}
             rows={2}
-            className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white"
+            className="flex-1 rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
           />
-          <button type="button" onClick={() => removeFeature(lang, i)}
-                  className="text-red-400 hover:text-red-300 text-sm px-2">Remove</button>
+          <Button type="button" variant="destructive" size="sm" onClick={() => removeFeature(lang, i)}>Remove</Button>
         </div>
       ))}
-      <button type="button" onClick={() => addFeature(lang)}
-              className="text-blue-400 hover:text-blue-300 text-sm">+ Add Feature</button>
+      <Button type="button" variant="outline" size="sm" onClick={() => addFeature(lang)}>+ Add Feature</Button>
     </div>
   );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {message && <div className={`text-sm px-3 py-2 rounded ${message.includes('Error') ? 'bg-red-900/50 text-red-300' : 'bg-green-900/50 text-green-300'}`}>{message}</div>}
+      {message && (
+        <div className={`text-sm px-4 py-2 rounded-lg ${message.includes('Error') ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
+          {message}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-sm text-gray-400 block mb-1">Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)}
-                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white" />
+        <div className="space-y-1.5">
+          <Label>Name</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} />
         </div>
-        <div>
-          <label className="text-sm text-gray-400 block mb-1">Amount (cents)</label>
-          <input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))}
-                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white" />
+        <div className="space-y-1.5">
+          <Label>Amount (cents)</Label>
+          <Input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
         </div>
-        <div>
-          <label className="text-sm text-gray-400 block mb-1">Stripe ID</label>
-          <input value={stripeId} onChange={(e) => setStripeId(e.target.value)}
-                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white" />
+        <div className="space-y-1.5">
+          <Label>Stripe ID</Label>
+          <Input value={stripeId} onChange={(e) => setStripeId(e.target.value)} />
         </div>
-        <div>
-          <label className="text-sm text-gray-400 block mb-1">Paddle ID</label>
-          <input value={paddleId} onChange={(e) => setPaddleId(e.target.value)}
-                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white" />
+        <div className="space-y-1.5">
+          <Label>Paddle ID</Label>
+          <Input value={paddleId} onChange={(e) => setPaddleId(e.target.value)} />
         </div>
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-gray-400">
-        <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="rounded" />
         Active
       </label>
 
-      <div className="border border-gray-700 rounded-lg p-4 space-y-4">
-        <h3 className="text-sm font-semibold text-gray-300">German (DE)</h3>
-        <div>
-          <label className="text-sm text-gray-400 block mb-1">Description</label>
-          <textarea value={deDescription} onChange={(e) => setDeDescription(e.target.value)} rows={2}
-                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white" />
-        </div>
-        <div>
-          <label className="text-sm text-gray-400 block mb-1">Tagline</label>
-          <input value={deTagline} onChange={(e) => setDeTagline(e.target.value)}
-                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white" />
-        </div>
-        {renderFeatures('de', deFeatures)}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>German (DE)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <textarea value={deDescription} onChange={(e) => setDeDescription(e.target.value)} rows={2}
+                      className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Tagline</Label>
+            <Input value={deTagline} onChange={(e) => setDeTagline(e.target.value)} />
+          </div>
+          {renderFeatures('de', deFeatures)}
+        </CardContent>
+      </Card>
 
-      <div className="border border-gray-700 rounded-lg p-4 space-y-4">
-        <h3 className="text-sm font-semibold text-gray-300">English (EN)</h3>
-        <div>
-          <label className="text-sm text-gray-400 block mb-1">Description</label>
-          <textarea value={enDescription} onChange={(e) => setEnDescription(e.target.value)} rows={2}
-                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white" />
-        </div>
-        <div>
-          <label className="text-sm text-gray-400 block mb-1">Tagline</label>
-          <input value={enTagline} onChange={(e) => setEnTagline(e.target.value)}
-                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white" />
-        </div>
-        {renderFeatures('en', enFeatures)}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>English (EN)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <textarea value={enDescription} onChange={(e) => setEnDescription(e.target.value)} rows={2}
+                      className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Tagline</Label>
+            <Input value={enTagline} onChange={(e) => setEnTagline(e.target.value)} />
+          </div>
+          {renderFeatures('en', enFeatures)}
+        </CardContent>
+      </Card>
 
-      <button type="submit" disabled={saving}
-              className="bg-blue-600 text-white px-6 py-2 rounded text-sm hover:bg-blue-500 disabled:opacity-50">
+      <Button type="submit" disabled={saving}>
         {saving ? 'Saving...' : 'Update Plan'}
-      </button>
+      </Button>
     </form>
   );
 }

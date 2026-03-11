@@ -1,6 +1,8 @@
 import { query } from '@/lib/db';
 import { formatDate, timeAgo } from '@/lib/format';
 import Link from 'next/link';
+import { Card, CardContent } from '@/components/ui/card';
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,35 +26,37 @@ export default async function InactiveUsersPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-bold text-white">Inactive Users (unconfirmed)</h1>
+      <h1 className="text-lg font-semibold">Inactive Users (unconfirmed)</h1>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-700 text-xs text-gray-400 uppercase">
-              <th className="px-3 py-2 text-left">Email</th>
-              <th className="px-3 py-2 text-left">Created</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-800">
-            {inactiveUsers.map((u: Record<string, unknown>) => (
-              <tr key={u.id as number} className="hover:bg-gray-800/50">
-                <td className="px-3 py-2">
-                  <Link href={`/users/${u.id}`} className="text-blue-400 hover:underline">{u.email as string}</Link>
-                </td>
-                <td className="px-3 py-2" title={formatDate(u.created_at as string)}>
-                  {timeAgo(u.created_at as string)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Card>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Email</TableHead>
+                <TableHead>Created</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {inactiveUsers.map((u: Record<string, unknown>) => (
+                <TableRow key={u.id as number}>
+                  <TableCell>
+                    <Link href={`/users/${u.id}`} className="text-primary hover:underline">{u.email as string}</Link>
+                  </TableCell>
+                  <TableCell title={formatDate(u.created_at as string)}>
+                    {timeAgo(u.created_at as string)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-      <div className="flex gap-2 text-sm">
-        {page > 1 && <Link href={`/inactive-users?page=${page - 1}`} className="text-blue-400 hover:underline">&larr; Previous</Link>}
-        <span className="text-gray-500">Page {page}</span>
-        {inactiveUsers.length === perPage && <Link href={`/inactive-users?page=${page + 1}`} className="text-blue-400 hover:underline">Next &rarr;</Link>}
+      <div className="flex gap-2 text-sm items-center">
+        {page > 1 && <Link href={`/inactive-users?page=${page - 1}`} className="text-primary hover:underline">&larr; Previous</Link>}
+        <span className="text-muted-foreground">Page {page}</span>
+        {inactiveUsers.length === perPage && <Link href={`/inactive-users?page=${page + 1}`} className="text-primary hover:underline">Next &rarr;</Link>}
       </div>
     </div>
   );

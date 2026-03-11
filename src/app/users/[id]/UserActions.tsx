@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   userId: number;
@@ -36,37 +38,31 @@ export default function UserActions({ userId, userName, hasActiveSubscription }:
 
   return (
     <div className="space-y-4">
-      {msg && <div className="text-sm text-green-400">{msg}</div>}
+      {msg && <div className="text-sm text-primary font-medium">{msg}</div>}
 
-      {/* Name edit */}
       <div className="flex gap-2 items-center">
-        <label className="text-sm text-gray-400">Name:</label>
-        <input
+        <label className="text-sm text-muted-foreground">Name:</label>
+        <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+          className="w-64"
         />
-        <button onClick={handleSaveName} disabled={saving}
-                className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-500 disabled:opacity-50">
+        <Button onClick={handleSaveName} disabled={saving} size="sm">
           {saving ? 'Saving...' : 'Save'}
-        </button>
+        </Button>
       </div>
 
-      {/* Cancel subscription */}
       {hasActiveSubscription && (
-        <button onClick={handleUnsubscribe}
-                className="bg-red-700 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600">
+        <Button onClick={handleUnsubscribe} variant="destructive" size="sm">
           Cancel Subscription
-        </button>
+        </Button>
       )}
 
-      {/* Become user (impersonate via Rails) */}
       <form method="POST" action={`https://www.quizshow.io/users/${userId}/become`} target="_blank">
-        <input type="hidden" name="secret" value="RTUILM40" />
-        <button type="submit"
-                className="bg-yellow-700 text-white px-3 py-1.5 rounded text-sm hover:bg-yellow-600">
+        <input type="hidden" name="secret" value={process.env.NEXT_PUBLIC_IMPERSONATE_SECRET || ''} />
+        <Button type="submit" variant="outline" size="sm">
           Login as this user
-        </button>
+        </Button>
       </form>
     </div>
   );

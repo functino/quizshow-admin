@@ -2,6 +2,8 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 const links = [
   { href: '/', label: 'Dashboard' },
@@ -33,31 +35,33 @@ export default function Nav() {
   };
 
   return (
-    <nav className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
-      <div className="flex items-center gap-4 flex-wrap">
-        <span className="text-gray-900 font-bold text-lg mr-4">quizshow.io admin</span>
-        {links.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={`text-sm px-2 py-1 rounded transition-colors ${
-              pathname === link.href
-                ? 'bg-gray-200 text-gray-900'
-                : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            {link.label}
-          </Link>
-        ))}
-        <form onSubmit={handleSearch} className="ml-auto flex gap-1">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search users..."
-            className="bg-gray-50 border border-gray-300 rounded px-2 py-1 text-xs text-gray-900 w-36 focus:outline-none focus:border-blue-500"
-          />
-        </form>
+    <nav className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center gap-1 py-3 flex-wrap">
+          {links.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn(
+                'text-xs px-2 py-1 rounded-md transition-colors',
+                pathname === link.href
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              )}
+            >
+              {link.label}
+            </Link>
+          ))}
+          <form onSubmit={handleSearch} className="ml-auto">
+            <Input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search users..."
+              className="w-36 h-7 text-xs"
+            />
+          </form>
+        </div>
       </div>
     </nav>
   );

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef } from 'react';
+import * as echarts from 'echarts';
 
 interface ChartDataPoint {
   month: number;
@@ -15,139 +16,186 @@ interface Props {
 }
 
 export default function DashboardCharts({ data }: Props) {
-  const userChartRef = useRef<HTMLCanvasElement>(null);
-  const quizChartRef = useRef<HTMLCanvasElement>(null);
+  const userChartRef = useRef<HTMLDivElement>(null);
+  const quizChartRef = useRef<HTMLDivElement>(null);
+  const userInstanceRef = useRef<echarts.ECharts | null>(null);
+  const quizInstanceRef = useRef<echarts.ECharts | null>(null);
 
   useEffect(() => {
-    drawChart(userChartRef.current, data.userByMonth, data.confirmedByMonth, 'Registrations by month');
-    drawChart(quizChartRef.current, data.quizByMonth, null, 'Quizzes by month');
+    if (!userChartRef.current || !quizChartRef.current) return;
+
+    // Dispose existing instances
+    if (userInstanceRef.current) userInstanceRef.current.dispose();
+    if (quizInstanceRef.current) quizInstanceRef.current.dispose();
+
+    // Current month projection
+    const now = new Date();
+    const currentMonthTs = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const dayOfMonth = now.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const monthFraction = dayOfMonth / daysInMonth;
+
+    // Build confirmed lookup
+    const confirmedMap = new Map<number, number>();
+    data.confirmedByMonth.forEach(d => confirmedMap.set(d.month, d.count));
+
+    // User chart data
+    const confirmedSeries: [number, number][] = [];
+    const unconfirmedSeries: [number, number][] = [];
+    const userEstimatedSeries: [number, number][] = [];
+
+    data.userByMonth.forEach(d => {
+      const confirmed = confirmedMap.get(d.month) || 0;
+      const unconfirmed = d.count - confirmed;
+      const isCurrentMonth = d.month === currentMonthTs;
+
+      confirmedSeries.push([d.month, confirmed]);
+      unconfirmedSeries.push([d.month, unconfirmed]);
+
+      if (isCurrentMonth && monthFraction > 0) {
+        const projectedConfirmed = Math.round(confirmed / monthFraction) - confirmed;
+        userEstimatedSeries.push([d.month, Math.max(0, projectedConfirmed)]);
+      } else {
+        userEstimatedSeries.push([d.month, 0]);
+      }
+    });
+
+    userInstanceRef.current = echarts.init(userChartRef.current);
+    userInstanceRef.current.setOption({
+      title: {
+        text: 'Registrations by month',
+        left: 'center',
+        top: 10,
+        textStyle: { fontSize: 14, fontWeight: 'bold' },
+      },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+      },
+      legend: {
+        data: ['confirmed', 'unconfirmed', 'estimated'],
+        right: 10,
+        top: 5,
+      },
+      grid: { left: '3%', right: '4%', top: 40, bottom: '3%', containLabel: true },
+      xAxis: {
+        type: 'time',
+        splitLine: {
+          show: true,
+          interval: (_index: number, value: string) => new Date(value).getMonth() === 0,
+          lineStyle: { color: 'rgba(0,0,0,0.08)', width: 2 },
+        },
+      },
+      yAxis: {
+        type: 'value',
+        splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
+      },
+      series: [
+        {
+          name: 'confirmed',
+          type: 'bar',
+          stack: 'total',
+          data: confirmedSeries,
+          itemStyle: { color: '#2893da' },
+        },
+        {
+          name: 'unconfirmed',
+          type: 'bar',
+          stack: 'total',
+          data: unconfirmedSeries,
+          itemStyle: { color: '#e16070' },
+        },
+        {
+          name: 'estimated',
+          type: 'bar',
+          stack: 'total',
+          data: userEstimatedSeries,
+          itemStyle: { color: '#f2b654' },
+        },
+      ],
+    });
+
+    // Quiz chart data
+    const quizSeries: [number, number][] = [];
+    const quizEstimatedSeries: [number, number][] = [];
+
+    data.quizByMonth.forEach(d => {
+      const isCurrentMonth = d.month === currentMonthTs;
+      quizSeries.push([d.month, d.count]);
+
+      if (isCurrentMonth && monthFraction > 0) {
+        const projected = Math.round(d.count / monthFraction) - d.count;
+        quizEstimatedSeries.push([d.month, Math.max(0, projected)]);
+      } else {
+        quizEstimatedSeries.push([d.month, 0]);
+      }
+    });
+
+    quizInstanceRef.current = echarts.init(quizChartRef.current);
+    quizInstanceRef.current.setOption({
+      title: {
+        text: 'Quizzes by month',
+        left: 'center',
+        top: 10,
+        textStyle: { fontSize: 14, fontWeight: 'bold' },
+      },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+      },
+      legend: {
+        data: ['Quizzes', 'estimated'],
+        right: 10,
+        top: 5,
+      },
+      grid: { left: '3%', right: '4%', top: 40, bottom: '3%', containLabel: true },
+      xAxis: {
+        type: 'time',
+        splitLine: {
+          show: true,
+          interval: (_index: number, value: string) => new Date(value).getMonth() === 0,
+          lineStyle: { color: 'rgba(0,0,0,0.08)', width: 2 },
+        },
+      },
+      yAxis: {
+        type: 'value',
+        splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
+      },
+      series: [
+        {
+          name: 'Quizzes',
+          type: 'bar',
+          stack: 'total',
+          data: quizSeries,
+          itemStyle: { color: '#66af1f' },
+        },
+        {
+          name: 'estimated',
+          type: 'bar',
+          stack: 'total',
+          data: quizEstimatedSeries,
+          itemStyle: { color: '#efc663' },
+        },
+      ],
+    });
+
+    const handleResize = () => {
+      userInstanceRef.current?.resize();
+      quizInstanceRef.current?.resize();
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      userInstanceRef.current?.dispose();
+      quizInstanceRef.current?.dispose();
+    };
   }, [data]);
 
   return (
     <section className="space-y-6">
-      <div>
-        <canvas ref={userChartRef} className="w-full" height={200} />
-      </div>
-      <div>
-        <canvas ref={quizChartRef} className="w-full" height={200} />
-      </div>
+      <div ref={userChartRef} style={{ height: 250 }} />
+      <div ref={quizChartRef} style={{ height: 250 }} />
     </section>
   );
-}
-
-function drawChart(
-  canvas: HTMLCanvasElement | null,
-  primaryData: ChartDataPoint[],
-  secondaryData: ChartDataPoint[] | null,
-  title: string,
-) {
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = 200 * dpr;
-  ctx.scale(dpr, dpr);
-
-  const w = rect.width;
-  const h = 200;
-  const padding = { top: 30, right: 20, bottom: 25, left: 50 };
-  const chartW = w - padding.left - padding.right;
-  const chartH = h - padding.top - padding.bottom;
-
-  ctx.clearRect(0, 0, w, h);
-
-  // Title
-  ctx.fillStyle = '#9ca3af';
-  ctx.font = 'bold 13px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(title, w / 2, 18);
-
-  if (primaryData.length === 0) return;
-
-  const maxVal = Math.max(...primaryData.map((d) => d.count), 1);
-  const barWidth = Math.max(2, chartW / primaryData.length - 2);
-
-  // Build confirmed map for stacking
-  const confirmedMap = new Map<number, number>();
-  if (secondaryData) {
-    secondaryData.forEach((d) => confirmedMap.set(d.month, d.count));
-  }
-
-  // Y axis labels
-  ctx.fillStyle = '#6b7280';
-  ctx.font = '10px sans-serif';
-  ctx.textAlign = 'right';
-  for (let i = 0; i <= 4; i++) {
-    const val = Math.round((maxVal / 4) * i);
-    const y = padding.top + chartH - (i / 4) * chartH;
-    ctx.fillText(String(val), padding.left - 5, y + 3);
-    ctx.strokeStyle = 'rgba(107, 114, 128, 0.2)';
-    ctx.beginPath();
-    ctx.moveTo(padding.left, y);
-    ctx.lineTo(w - padding.right, y);
-    ctx.stroke();
-  }
-
-  // Determine if last bar is current month (for projection)
-  const now = new Date();
-  const currentMonthTs = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-  const dayOfMonth = now.getDate();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const monthFraction = dayOfMonth / daysInMonth;
-
-  primaryData.forEach((d, i) => {
-    const x = padding.left + (i / primaryData.length) * chartW;
-    const isCurrentMonth = d.month === currentMonthTs;
-    const confirmedCount = confirmedMap.get(d.month) || 0;
-    const unconfirmedCount = d.count - confirmedCount;
-
-    if (isCurrentMonth && monthFraction > 0) {
-      // Draw projected (estimated full month) as faded bar
-      const projectedCount = Math.round(d.count / monthFraction);
-      const projH = (projectedCount / maxVal) * chartH;
-      if (secondaryData) {
-        const projConfirmed = Math.round(confirmedCount / monthFraction);
-        const projUnconfirmed = projectedCount - projConfirmed;
-        const projConfH = (projConfirmed / maxVal) * chartH;
-        const projUnconfH = (projUnconfirmed / maxVal) * chartH;
-        ctx.fillStyle = 'rgba(59, 130, 246, 0.25)';
-        ctx.fillRect(x, padding.top + chartH - projConfH, barWidth, projConfH);
-        ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
-        ctx.fillRect(x, padding.top + chartH - projConfH - projUnconfH, barWidth, projUnconfH);
-      } else {
-        ctx.fillStyle = 'rgba(34, 197, 94, 0.25)';
-        ctx.fillRect(x, padding.top + chartH - projH, barWidth, projH);
-      }
-    }
-
-    // Draw actual bar on top
-    const barH = (d.count / maxVal) * chartH;
-    if (secondaryData) {
-      const confH = (confirmedCount / maxVal) * chartH;
-      ctx.fillStyle = '#3b82f6';
-      ctx.fillRect(x, padding.top + chartH - confH, barWidth, confH);
-      const unconfH = (unconfirmedCount / maxVal) * chartH;
-      ctx.fillStyle = '#ef4444';
-      ctx.fillRect(x, padding.top + chartH - confH - unconfH, barWidth, unconfH);
-    } else {
-      ctx.fillStyle = '#22c55e';
-      ctx.fillRect(x, padding.top + chartH - barH, barWidth, barH);
-    }
-
-    // X axis label (every 6 months)
-    if (i % 6 === 0) {
-      const date = new Date(d.month);
-      ctx.fillStyle = '#6b7280';
-      ctx.font = '9px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(
-        `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
-        x + barWidth / 2,
-        h - 5,
-      );
-    }
-  });
 }
