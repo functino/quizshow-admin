@@ -2,7 +2,6 @@ import { query } from '@/lib/db';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +35,6 @@ export default async function QuizPrintPage({ params, searchParams }: Props) {
       <div className="flex items-center gap-4 print:hidden">
         <Link href="/quizzes" className="text-muted-foreground hover:text-foreground text-sm">&larr; Back</Link>
         <h1 className="text-lg font-semibold">{quiz.name as string}</h1>
-        <Button size="sm" onClick={() => window.print()}>Print</Button>
       </div>
 
       {versions.length > 0 && (

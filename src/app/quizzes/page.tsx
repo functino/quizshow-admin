@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import PlanBadge from '@/components/PlanBadge';
+import { Eye, Printer, BarChart3 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -135,7 +136,7 @@ export default async function QuizzesPage({ searchParams }: Props) {
     `, [`%${search}%`]);
   }
 
-  const quizHeaders = ['Name', 'Code', 'User', 'Runs', 'Done', 'Date'];
+  const quizHeaders = ['Name', 'Code', 'User', 'Runs', 'Done', 'Date', 'Actions'];
 
   const renderQuizRow = (q: Record<string, unknown>, dateField: string = 'created_at') => (
     <TableRow key={`${q.id}-${dateField}`}>
@@ -152,6 +153,11 @@ export default async function QuizzesPage({ searchParams }: Props) {
       <TableCell>{q.run_count as number}</TableCell>
       <TableCell>{q.done_count as number}</TableCell>
       <TableCell>{formatDate(q[dateField] as string)}</TableCell>
+      <TableCell className="flex gap-2">
+        <Link href={`/quizzes/${q.id}/results`} className="text-muted-foreground hover:text-primary" title="Results"><BarChart3 className="w-3.5 h-3.5" /></Link>
+        <Link href={`/quizzes/${q.id}/peek`} className="text-muted-foreground hover:text-primary" title="Peek"><Eye className="w-3.5 h-3.5" /></Link>
+        <Link href={`/quizzes/${q.code}/print`} className="text-muted-foreground hover:text-primary" title="Print"><Printer className="w-3.5 h-3.5" /></Link>
+      </TableCell>
     </TableRow>
   );
 
@@ -171,7 +177,7 @@ export default async function QuizzesPage({ searchParams }: Props) {
       {search && (
         <DataTable headers={quizHeaders} title={`Search results for "${search}"`}>
           {searchResults.map((q) => renderQuizRow(q, 'updated_at'))}
-          {searchResults.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No results</TableCell></TableRow>}
+          {searchResults.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No results</TableCell></TableRow>}
         </DataTable>
       )}
 
