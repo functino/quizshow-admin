@@ -3,6 +3,7 @@ import { formatDate } from '@/lib/format';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
+import { Eye, Printer, BarChart3 } from 'lucide-react';
 import PlanBadge from '@/components/PlanBadge';
 
 export const dynamic = 'force-dynamic';
@@ -84,9 +85,9 @@ export default async function PartTypeDetailPage({ params }: Props) {
                   <TableCell>{formatDate(q.created_at as string)}</TableCell>
                   <TableCell>{formatDate(q.updated_at as string)}</TableCell>
                   <TableCell className="flex gap-2">
-                    <Link href={`/quizzes/${q.id}/results`} className="text-primary hover:underline text-xs">[results]</Link>
-                    <Link href={`/quizzes/${q.id}/peek`} className="text-primary hover:underline text-xs">[peek]</Link>
-                    <Link href={`/quizzes/${q.code}/print`} className="text-primary hover:underline text-xs">[print]</Link>
+                    <Link href={`/quizzes/${q.id}/results`} className="text-muted-foreground hover:text-primary" title="Results"><BarChart3 className="w-3.5 h-3.5" /></Link>
+                    <Link href={`/quizzes/${q.id}/peek`} className="text-muted-foreground hover:text-primary" title="Peek"><Eye className="w-3.5 h-3.5" /></Link>
+                    <Link href={`/quizzes/${q.code}/print`} className="text-muted-foreground hover:text-primary" title="Print"><Printer className="w-3.5 h-3.5" /></Link>
                   </TableCell>
                 </TableRow>
               ))}

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Eye } from 'lucide-react';
 
 interface VoiceEntry {
   src?: string;
@@ -50,8 +51,8 @@ export default function VoiceDetails({ quiz }: { quiz: Quiz }) {
     <>
       <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => setOpen(!open)}>
         <TableCell>
-          <a href={`/quizzes/${quiz.id}/peek`} className="text-primary hover:underline" onClick={e => e.stopPropagation()}>
-            {quiz.id}
+          <a href={`/quizzes/${quiz.id}/peek`} className="inline-flex items-center gap-1 text-primary hover:underline" onClick={e => e.stopPropagation()}>
+            {quiz.id} <Eye className="w-3 h-3" />
           </a>
         </TableCell>
         <TableCell>{quiz.name}</TableCell>

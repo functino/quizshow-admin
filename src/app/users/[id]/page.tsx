@@ -5,6 +5,7 @@ import UserActions from './UserActions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
+import { Eye, Printer, BarChart3 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -162,9 +163,9 @@ export default async function UserDetailPage({ params }: Props) {
                   <TableCell>{formatDate(quiz.created_at as string)}</TableCell>
                   <TableCell>{formatDate(quiz.last_run_at as string)}</TableCell>
                   <TableCell className="flex gap-2">
-                    <Link href={`/quizzes/${quiz.id}/results`} className="text-primary hover:underline text-xs">[r]</Link>
-                    <Link href={`/quizzes/${quiz.id}/peek`} className="text-primary hover:underline text-xs">[peek]</Link>
-                    <Link href={`/quizzes/${quiz.code}/print`} className="text-primary hover:underline text-xs">[print]</Link>
+                    <Link href={`/quizzes/${quiz.id}/results`} className="text-muted-foreground hover:text-primary" title="Results"><BarChart3 className="w-3.5 h-3.5" /></Link>
+                    <Link href={`/quizzes/${quiz.id}/peek`} className="text-muted-foreground hover:text-primary" title="Peek"><Eye className="w-3.5 h-3.5" /></Link>
+                    <Link href={`/quizzes/${quiz.code}/print`} className="text-muted-foreground hover:text-primary" title="Print"><Printer className="w-3.5 h-3.5" /></Link>
                   </TableCell>
                 </TableRow>
               ))}
