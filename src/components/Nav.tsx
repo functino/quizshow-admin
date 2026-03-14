@@ -19,6 +19,7 @@ const links = [
   { href: '/candidates', label: 'Candidates' },
   { href: '/plans', label: 'Plans' },
   { href: '/inactive-users', label: 'Inactive' },
+  { href: '/db', label: 'DB' },
   { href: '/api/csv', label: 'CSV' },
 ];
 
