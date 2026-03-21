@@ -42,7 +42,7 @@ export default async function OffensePage({ searchParams }: Props) {
           const pct1 = totalVotes > 0 ? Math.round((Number(p.votes1 || 0) / totalVotes) * 100) : 0;
           const pct2 = totalVotes > 0 ? Math.round((Number(p.votes2 || 0) / totalVotes) * 100) : 0;
           const date = p.prompt_date
-            ? new Date(Number(p.prompt_date)).toLocaleString('en-GB')
+            ? new Date(Number(p.prompt_date)).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })
             : '-';
 
           return (
