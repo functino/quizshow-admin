@@ -4,8 +4,25 @@ import StatCard from '@/components/StatCard';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { unstable_cache } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
+
+const getEventStats = unstable_cache(
+  async () => {
+    const [resultCount, eventCount, resultLastMonth, eventLastMonth, resultLastDay, eventLastDay] = await Promise.all([
+      query("SELECT COUNT(*) as count FROM quiz_results WHERE updated_at > '2024-02-27'").then(r => r[0].count),
+      query('SELECT COUNT(DISTINCT run_id) as count FROM quiz_events').then(r => r[0].count),
+      query("SELECT COUNT(*) as count FROM quiz_results WHERE updated_at > CURRENT_TIMESTAMP - INTERVAL '1 month'").then(r => r[0].count),
+      query("SELECT COUNT(DISTINCT run_id) as count FROM quiz_events WHERE updated_at > CURRENT_TIMESTAMP - INTERVAL '1 month'").then(r => r[0].count),
+      query("SELECT COUNT(*) as count FROM quiz_results WHERE updated_at > CURRENT_TIMESTAMP - INTERVAL '1 day'").then(r => r[0].count),
+      query("SELECT COUNT(DISTINCT run_id) as count FROM quiz_events WHERE updated_at > CURRENT_TIMESTAMP - INTERVAL '1 day'").then(r => r[0].count),
+    ]);
+    return { resultCount, eventCount, resultLastMonth, eventLastMonth, resultLastDay, eventLastDay };
+  },
+  ['events-stats'],
+  { revalidate: 300 },
+);
 
 interface Props {
   searchParams: Promise<{ run_id?: string; page?: string; per_page?: string }>;
@@ -18,44 +35,36 @@ export default async function EventsPage({ searchParams }: Props) {
   const perPage = parseInt(params.per_page || '10');
   const offset = (page - 1) * perPage;
 
-  const stats = {
-    resultCount:    query("SELECT COUNT(*) as count FROM quiz_results WHERE updated_at > '2024-02-27'").then(r => r[0].count),
-    eventCount:     query('SELECT COUNT(DISTINCT run_id) as count FROM quiz_events').then(r => r[0].count),
-    resultLastMonth: query("SELECT COUNT(*) as count FROM quiz_results WHERE updated_at > CURRENT_TIMESTAMP - INTERVAL '1 month'").then(r => r[0].count),
-    eventLastMonth: query("SELECT COUNT(DISTINCT run_id) as count FROM quiz_events WHERE updated_at > CURRENT_TIMESTAMP - INTERVAL '1 month'").then(r => r[0].count),
-    resultLastDay:  query("SELECT COUNT(*) as count FROM quiz_results WHERE updated_at > CURRENT_TIMESTAMP - INTERVAL '1 day'").then(r => r[0].count),
-    eventLastDay:   query("SELECT COUNT(DISTINCT run_id) as count FROM quiz_events WHERE updated_at > CURRENT_TIMESTAMP - INTERVAL '1 day'").then(r => r[0].count),
-  };
-
-  const resultCount = await stats.resultCount;
-  const eventCount = await stats.eventCount;
-  const resultLastMonth = await stats.resultLastMonth;
-  const eventLastMonth = await stats.eventLastMonth;
-  const resultLastDay = await stats.resultLastDay;
-  const eventLastDay = await stats.eventLastDay;
+  const { resultCount, eventCount, resultLastMonth, eventLastMonth, resultLastDay, eventLastDay } = await getEventStats();
 
   const pct = (a: number, b: number) => b > 0 ? `${Math.round(a / b * 100)}%` : '-';
 
-  let eventsQuery = `
-    SELECT qe.id, qe.run_id, qe.data, qe.created_at, qe.updated_at, qe.quiz_id,
-           q.name as quiz_name, q.code as quiz_code, q.public as quiz_public,
-           q.data as quiz_data,
-           u.email as user_email, u.id as user_id, u.name as user_name
-    FROM quiz_events qe
-    LEFT JOIN quizzes q ON qe.quiz_id = q.id
-    LEFT JOIN users u ON q.user_id = u.id
-  `;
-  const queryParams: unknown[] = [];
+  let runIds: string[];
   if (runId) {
-    eventsQuery += ` WHERE qe.run_id = $1`;
-    queryParams.push(runId);
+    runIds = [runId];
+  } else {
+    const runRows = await query(
+      `SELECT run_id FROM quiz_events GROUP BY run_id ORDER BY MAX(updated_at) DESC LIMIT $1 OFFSET $2`,
+      [perPage, offset],
+    );
+    runIds = runRows.map(r => r.run_id as string);
   }
-  eventsQuery += ` ORDER BY qe.updated_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
-  queryParams.push(perPage, offset);
 
-  const events = await query(eventsQuery, queryParams);
+  const events = runIds.length === 0 ? [] : await query(
+    `SELECT qe.id, qe.run_id, qe.data, qe.created_at, qe.updated_at, qe.quiz_id,
+            q.name as quiz_name, q.code as quiz_code, q.public as quiz_public,
+            q.data as quiz_data,
+            u.email as user_email, u.id as user_id, u.name as user_name
+     FROM quiz_events qe
+     LEFT JOIN quizzes q ON qe.quiz_id = q.id
+     LEFT JOIN users u ON q.user_id = u.id
+     WHERE qe.run_id = ANY($1)
+     ORDER BY qe.updated_at DESC`,
+    [runIds],
+  );
 
   const grouped = new Map<string, typeof events>();
+  for (const rid of runIds) grouped.set(rid, []);
   for (const event of events) {
     const rid = event.run_id as string;
     if (!grouped.has(rid)) grouped.set(rid, []);
@@ -193,7 +202,7 @@ export default async function EventsPage({ searchParams }: Props) {
       <div className="flex gap-2 text-sm items-center">
         {page > 1 && <Link href={`/events?page=${page - 1}${runId ? `&run_id=${runId}` : ''}`} className="text-primary hover:underline">&larr; Previous</Link>}
         <span className="text-muted-foreground">Page {page}</span>
-        {events.length === perPage && <Link href={`/events?page=${page + 1}${runId ? `&run_id=${runId}` : ''}`} className="text-primary hover:underline">Next &rarr;</Link>}
+        {!runId && runIds.length === perPage && <Link href={`/events?page=${page + 1}`} className="text-primary hover:underline">Next &rarr;</Link>}
       </div>
     </div>
   );
