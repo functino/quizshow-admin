@@ -12,6 +12,7 @@ const links = [
   { href: '/users', label: 'Users' },
   { href: '/quizzes', label: 'Quizzes' },
   { href: '/results', label: 'Results' },
+  { href: '/ratings', label: 'Ratings' },
   { href: '/events', label: 'Events' },
   { href: '/voices', label: 'Voices' },
   { href: '/offense', label: 'Offense' },

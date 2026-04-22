@@ -69,12 +69,36 @@ export default async function ResultsPage({ searchParams }: Props) {
       LATERAL jsonb_each(quiz_results.data->'reactions') AS reactions
       GROUP BY reactions.key ORDER BY count DESC
     `),
+    ratingStatsLastDay: query(`SELECT COUNT(*)::int AS count, AVG(rating)::float AS avg FROM quiz_ratings WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '1 day'`),
+    ratingStatsLastMonth: query(`SELECT COUNT(*)::int AS count, AVG(rating)::float AS avg FROM quiz_ratings WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '1 month'`),
+    ratingStatsAllTime: query(`SELECT COUNT(*)::int AS count, AVG(rating)::float AS avg FROM quiz_ratings`),
+    ratingHistLastDay: query(`SELECT rating, COUNT(*)::int AS count FROM quiz_ratings WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '1 day' GROUP BY rating ORDER BY rating`),
+    ratingHistLastMonth: query(`SELECT rating, COUNT(*)::int AS count FROM quiz_ratings WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '1 month' GROUP BY rating ORDER BY rating`),
+    ratingHistAllTime: query(`SELECT rating, COUNT(*)::int AS count FROM quiz_ratings GROUP BY rating ORDER BY rating`),
   };
 
   const results = await p.results;
   const reactionsLastDay = await p.reactionsLastDay;
   const reactionsLastMonth = await p.reactionsLastMonth;
   const reactionsAllTime = await p.reactionsAllTime;
+  const ratingStatsLastDay = (await p.ratingStatsLastDay)[0] || { count: 0, avg: null };
+  const ratingStatsLastMonth = (await p.ratingStatsLastMonth)[0] || { count: 0, avg: null };
+  const ratingStatsAllTime = (await p.ratingStatsAllTime)[0] || { count: 0, avg: null };
+  const ratingHistLastDay = await p.ratingHistLastDay;
+  const ratingHistLastMonth = await p.ratingHistLastMonth;
+  const ratingHistAllTime = await p.ratingHistAllTime;
+
+  const runIds = results.map((r: Record<string, unknown>) => (r.data as Record<string, unknown>)?.runId as string).filter(Boolean);
+  const ratingsForRuns = runIds.length === 0 ? [] : await query(
+    `SELECT run_id, rating, player_id FROM quiz_ratings WHERE run_id = ANY($1)`,
+    [runIds],
+  );
+  const ratingsByRun = new Map<string, { run_id: string; rating: number; player_id: string | null }[]>();
+  for (const r of ratingsForRuns) {
+    const rid = r.run_id as string;
+    if (!ratingsByRun.has(rid)) ratingsByRun.set(rid, []);
+    ratingsByRun.get(rid)!.push(r as { run_id: string; rating: number; player_id: string | null });
+  }
 
   const renderReactions = (reactions: Record<string, unknown>[]) => (
     <div className="flex flex-wrap gap-1">
@@ -86,6 +110,43 @@ export default async function ResultsPage({ searchParams }: Props) {
       ))}
     </div>
   );
+
+  const renderRatingHistogram = (hist: Record<string, unknown>[], total: number) => {
+    const byRating = new Map(hist.map(h => [Number(h.rating), Number(h.count)]));
+    return (
+      <div className="space-y-1">
+        {[5, 4, 3, 2, 1].map(n => {
+          const count = byRating.get(n) || 0;
+          const pct = total > 0 ? (count / total) * 100 : 0;
+          return (
+            <div key={n} className="flex items-center gap-2 text-xs">
+              <span className="w-6 tabular-nums">{n}★</span>
+              <div className="flex-1 h-1.5 bg-muted rounded overflow-hidden">
+                <div className="h-full bg-yellow-400" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="w-16 text-right tabular-nums text-muted-foreground">
+                {count} ({pct.toFixed(0)}%)
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderRatingSummary = (stats: { count: number; avg: number | null }, hist: Record<string, unknown>[]) => {
+    const count = Number(stats.count) || 0;
+    const avg = stats.avg == null ? null : Number(stats.avg);
+    return (
+      <div className="space-y-2">
+        <div className="flex items-baseline gap-2">
+          <span className="text-xl font-bold tabular-nums">{avg == null ? '-' : `${avg.toFixed(2)}★`}</span>
+          <span className="text-xs text-muted-foreground">{count} ratings</span>
+        </div>
+        {count > 0 && renderRatingHistogram(hist, count)}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -107,25 +168,50 @@ export default async function ResultsPage({ searchParams }: Props) {
         {code && <Link href="/results" className="text-muted-foreground hover:text-foreground px-2 py-1.5 text-sm">Clear</Link>}
       </form>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Reactions</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div>
-            <span className="text-xs text-muted-foreground block mb-1">Last 24h:</span>
-            {renderReactions(reactionsLastDay)}
-          </div>
-          <div>
-            <span className="text-xs text-muted-foreground block mb-1">Last month:</span>
-            {renderReactions(reactionsLastMonth)}
-          </div>
-          <div>
-            <span className="text-xs text-muted-foreground block mb-1">All time:</span>
-            {renderReactions(reactionsAllTime)}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Reactions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <span className="text-xs text-muted-foreground block mb-1">Last 24h:</span>
+              {renderReactions(reactionsLastDay)}
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground block mb-1">Last month:</span>
+              {renderReactions(reactionsLastMonth)}
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground block mb-1">All time:</span>
+              {renderReactions(reactionsAllTime)}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Ratings</span>
+              <Link href="/ratings" className="text-xs text-primary hover:underline font-normal">Details &rarr;</Link>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <span className="text-xs text-muted-foreground block mb-1">Last 24h</span>
+              {renderRatingSummary(ratingStatsLastDay as { count: number; avg: number | null }, ratingHistLastDay)}
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground block mb-1">Last month</span>
+              {renderRatingSummary(ratingStatsLastMonth as { count: number; avg: number | null }, ratingHistLastMonth)}
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground block mb-1">All time</span>
+              {renderRatingSummary(ratingStatsAllTime as { count: number; avg: number | null }, ratingHistAllTime)}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <section>
         <h2 className="text-sm font-medium text-muted-foreground mb-3">
@@ -141,6 +227,15 @@ export default async function ResultsPage({ searchParams }: Props) {
             const startTime = data?.startTime as number | undefined;
             const endTime = data?.endTime as number | undefined;
             const durationMin = startTime && endTime ? Math.round((endTime - startTime) / 1000 / 60) : null;
+            const runId = data?.runId as string | undefined;
+            const runRatings = runId ? ratingsByRun.get(runId) || [] : [];
+            const runRatingAvg = runRatings.length
+              ? runRatings.reduce((s, x) => s + Number(x.rating), 0) / runRatings.length
+              : null;
+            const ratingByPlayer = new Map<string, number>();
+            for (const rr of runRatings) {
+              if (rr.player_id) ratingByPlayer.set(rr.player_id, Number(rr.rating));
+            }
 
             return (
               <Card key={r.id as number}>
@@ -150,6 +245,13 @@ export default async function ResultsPage({ searchParams }: Props) {
                       <span className="text-sm font-medium">{formatDate(r.created_at as string)}</span>
                       {durationMin != null && <Badge variant="outline">{durationMin} min</Badge>}
                       <Badge variant="secondary">{players.length} Players</Badge>
+                      {runRatingAvg != null && (
+                        <Badge variant="outline" className="gap-1">
+                          <span style={{ color: '#e8b84a' }}>★</span>
+                          <span className="tabular-nums">{runRatingAvg.toFixed(2)}</span>
+                          <span className="text-muted-foreground">({runRatings.length})</span>
+                        </Badge>
+                      )}
                       {data?.runId != null && (
                         <Link href={`/events?run_id=${data.runId}`} className="text-primary hover:underline font-mono text-xs">
                           ({(data.runId as string).slice(0, 8)}...)
@@ -185,6 +287,8 @@ export default async function ResultsPage({ searchParams }: Props) {
                           .sort((a, b) => ((b.points as number) || 0) - ((a.points as number) || 0))
                           .map((p, i) => {
                             const playerReactions = p.reactions as Record<string, number> | undefined;
+                            const playerId = p.id as string | undefined;
+                            const playerRating = playerId ? ratingByPlayer.get(playerId) : undefined;
                             return (
                               <tr key={i} className="hover:bg-muted/50">
                                 <td className="py-1 pr-2">{(p.name as string) || `Player ${i + 1}`}</td>
@@ -192,6 +296,14 @@ export default async function ResultsPage({ searchParams }: Props) {
                                   {p.avatar != null && <img src={avatarImgUrl(p.avatar as string)} alt="" className="w-5 h-5 inline rounded" />}
                                 </td>
                                 <td className="py-1 pr-2 text-muted-foreground">{p.points != null ? `${p.points}pts` : ''}</td>
+                                <td className="py-1 pr-2">
+                                  {playerRating != null && (
+                                    <span style={{ color: '#e8b84a' }} title={`${playerRating} / 5`}>
+                                      {'★'.repeat(playerRating)}
+                                      <span style={{ color: '#d8d8d8' }}>{'★'.repeat(5 - playerRating)}</span>
+                                    </span>
+                                  )}
+                                </td>
                                 <td className="py-1">
                                   {playerReactions && Object.entries(playerReactions).sort((a, b) => b[1] - a[1]).map(([emoji, count]) => (
                                     <span key={emoji} className="inline-flex items-center gap-0.5 mr-1">
