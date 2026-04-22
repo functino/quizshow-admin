@@ -24,6 +24,25 @@ const getEventStats = unstable_cache(
   { revalidate: 300 },
 );
 
+// Paginated list of recent run_ids. Sourced from quiz_results (one row per finished run,
+// indexed on created_at via the serial pkey ordering), which avoids a GROUP BY across
+// the much larger quiz_events table. Runs without a completed quiz_results row won't appear.
+const getRecentRunIds = unstable_cache(
+  async (perPage: number, offset: number): Promise<string[]> => {
+    const rows = await query(
+      `SELECT data->>'runId' AS run_id
+       FROM quiz_results
+       WHERE data ? 'runId'
+       ORDER BY id DESC
+       LIMIT $1 OFFSET $2`,
+      [perPage, offset],
+    );
+    return rows.map(r => r.run_id as string).filter(Boolean);
+  },
+  ['events-recent-run-ids'],
+  { revalidate: 60 },
+);
+
 interface Props {
   searchParams: Promise<{ run_id?: string; page?: string; per_page?: string }>;
 }
@@ -39,21 +58,12 @@ export default async function EventsPage({ searchParams }: Props) {
 
   const pct = (a: number, b: number) => b > 0 ? `${Math.round(a / b * 100)}%` : '-';
 
-  let runIds: string[];
-  if (runId) {
-    runIds = [runId];
-  } else {
-    const runRows = await query(
-      `SELECT run_id FROM quiz_events GROUP BY run_id ORDER BY MAX(updated_at) DESC LIMIT $1 OFFSET $2`,
-      [perPage, offset],
-    );
-    runIds = runRows.map(r => r.run_id as string);
-  }
+  const runIds: string[] = runId ? [runId] : await getRecentRunIds(perPage, offset);
 
   const events = runIds.length === 0 ? [] : await query(
     `SELECT qe.id, qe.run_id, qe.data, qe.created_at, qe.updated_at, qe.quiz_id,
             q.name as quiz_name, q.code as quiz_code, q.public as quiz_public,
-            q.data as quiz_data,
+            COALESCE(jsonb_array_length(q.data->'parts'), 0) as parts_count,
             u.email as user_email, u.id as user_id, u.name as user_name
      FROM quiz_events qe
      LEFT JOIN quizzes q ON qe.quiz_id = q.id
@@ -99,8 +109,7 @@ export default async function EventsPage({ searchParams }: Props) {
             const durationStr = durationSec != null
               ? durationSec >= 60 ? `${Math.floor(durationSec / 60)}m ${durationSec % 60}s` : `${durationSec}s`
               : '';
-            const quizData = first.quiz_data as Record<string, unknown> | null;
-            const partsCount = quizData?.parts ? (quizData.parts as unknown[]).length : 0;
+            const partsCount = Number(first.parts_count) || 0;
 
             return (
               <Card key={rid}>
