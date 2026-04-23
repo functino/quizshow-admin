@@ -60,8 +60,27 @@ export default async function EventsPage({ searchParams }: Props) {
 
   const runIds: string[] = runId ? [runId] : await getRecentRunIds(perPage, offset);
 
+  // Only project the fields we actually render. Historically, `data` held a full
+  // snapshot of every player (including base64 `data:` avatars up to ~250 kB each),
+  // so selecting `qe.data` shipped ~7 MB per page. Projecting individual jsonb paths
+  // and stripping data-URL avatars keeps the payload under ~200 kB.
   const events = runIds.length === 0 ? [] : await query(
-    `SELECT qe.id, qe.run_id, qe.data, qe.created_at, qe.updated_at, qe.quiz_id,
+    `SELECT qe.id, qe.run_id, qe.created_at, qe.updated_at, qe.quiz_id,
+            (qe.data->'startTime')::bigint AS start_time,
+            (qe.data->'endTime')::bigint AS end_time,
+            qe.data->>'partType' AS part_type,
+            qe.data->'partData'->'model'->>'type' AS model_type,
+            qe.data->'partData'->'model'->>'question' AS question,
+            (SELECT jsonb_agg(jsonb_build_object(
+                'name', p->'name',
+                'avatar', CASE WHEN p->>'avatar' LIKE 'data:%' THEN NULL ELSE p->'avatar' END,
+                'score', p->'score',
+                'points', p->'points',
+                'id', p->'id'))
+             FROM jsonb_array_elements(
+               COALESCE(qe.data->'partResultData'->'players', qe.data->'players')
+             ) p) AS players,
+            qe.data->'reactions' AS reactions,
             q.name as quiz_name, q.code as quiz_code, q.public as quiz_public,
             COALESCE(jsonb_array_length(q.data->'parts'), 0) as parts_count,
             u.email as user_email, u.id as user_id, u.name as user_name
@@ -101,10 +120,9 @@ export default async function EventsPage({ searchParams }: Props) {
         <div className="space-y-4">
           {Array.from(grouped.entries()).map(([rid, groupEvents]) => {
             const first = groupEvents[0];
-            const firstData = first.data as Record<string, unknown>;
-            const lastData = groupEvents[groupEvents.length - 1].data as Record<string, unknown>;
-            const startTime = firstData?.startTime as number | undefined;
-            const endTime = lastData?.endTime as number | undefined;
+            const last = groupEvents[groupEvents.length - 1];
+            const startTime = first.start_time != null ? Number(first.start_time) : undefined;
+            const endTime = last.end_time != null ? Number(last.end_time) : undefined;
             const durationSec = startTime && endTime ? Math.round(Math.abs(startTime - endTime) / 1000) : null;
             const durationStr = durationSec != null
               ? durationSec >= 60 ? `${Math.floor(durationSec / 60)}m ${durationSec % 60}s` : `${durationSec}s`
@@ -140,20 +158,16 @@ export default async function EventsPage({ searchParams }: Props) {
 
                   <div className="space-y-2">
                     {groupEvents.map((event: Record<string, unknown>) => {
-                      const data = event.data as Record<string, unknown>;
-                      const partData = data?.partData as Record<string, unknown> | undefined;
-                      const model = partData?.model as Record<string, unknown> | undefined;
-                      const partType = (data?.partType as string) || model?.type as string || 'unknown';
-                      const question = model?.question as string || '';
-                      const partResultData = data?.partResultData as Record<string, unknown> | undefined;
-                      const players = (partResultData?.players || data?.players) as Record<string, unknown>[] | undefined;
-                      const evtStart = data?.startTime as number | undefined;
-                      const evtEnd = data?.endTime as number | undefined;
+                      const partType = (event.part_type as string) || (event.model_type as string) || 'unknown';
+                      const question = (event.question as string) || '';
+                      const players = event.players as Record<string, unknown>[] | null;
+                      const evtStart = event.start_time != null ? Number(event.start_time) : undefined;
+                      const evtEnd = event.end_time != null ? Number(event.end_time) : undefined;
                       const evtDurSec = evtStart && evtEnd ? Math.round((evtEnd - evtStart) / 1000) : null;
                       const evtDurStr = evtDurSec != null
                         ? evtDurSec >= 60 ? `${Math.floor(evtDurSec / 60)}m ${evtDurSec % 60}s` : `${evtDurSec}s`
                         : '';
-                      const reactions = data?.reactions as Record<string, unknown>[] | undefined;
+                      const reactions = event.reactions as Record<string, unknown>[] | undefined;
 
                       return (
                         <div key={event.id as number} className="text-xs bg-muted/50 rounded-lg p-3">
