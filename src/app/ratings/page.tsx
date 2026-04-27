@@ -4,7 +4,6 @@ import StatCard from '@/components/StatCard';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { unstable_cache } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,21 +11,17 @@ interface Props {
   searchParams: Promise<{ code?: string; page?: string }>;
 }
 
-const getRatingStats = unstable_cache(
-  async () => {
-    const [overall, lastMonth, lastDay, histLastDay, histLastMonth, histAllTime] = await Promise.all([
-      query(`SELECT COUNT(*)::int as count, AVG(rating)::float as avg FROM quiz_ratings`).then(r => r[0]),
-      query(`SELECT COUNT(*)::int as count, AVG(rating)::float as avg FROM quiz_ratings WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '1 month'`).then(r => r[0]),
-      query(`SELECT COUNT(*)::int as count, AVG(rating)::float as avg FROM quiz_ratings WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '1 day'`).then(r => r[0]),
-      query(`SELECT rating, COUNT(*)::int as count FROM quiz_ratings WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '1 day' GROUP BY rating ORDER BY rating`),
-      query(`SELECT rating, COUNT(*)::int as count FROM quiz_ratings WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '1 month' GROUP BY rating ORDER BY rating`),
-      query(`SELECT rating, COUNT(*)::int as count FROM quiz_ratings GROUP BY rating ORDER BY rating`),
-    ]);
-    return { overall, lastMonth, lastDay, histLastDay, histLastMonth, histAllTime };
-  },
-  ['ratings-stats'],
-  { revalidate: 300 },
-);
+async function getRatingStats() {
+  const [overall, lastMonth, lastDay, histLastDay, histLastMonth, histAllTime] = await Promise.all([
+    query(`SELECT COUNT(*)::int as count, AVG(rating)::float as avg FROM quiz_ratings`).then(r => r[0]),
+    query(`SELECT COUNT(*)::int as count, AVG(rating)::float as avg FROM quiz_ratings WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '1 month'`).then(r => r[0]),
+    query(`SELECT COUNT(*)::int as count, AVG(rating)::float as avg FROM quiz_ratings WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '1 day'`).then(r => r[0]),
+    query(`SELECT rating, COUNT(*)::int as count FROM quiz_ratings WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '1 day' GROUP BY rating ORDER BY rating`),
+    query(`SELECT rating, COUNT(*)::int as count FROM quiz_ratings WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '1 month' GROUP BY rating ORDER BY rating`),
+    query(`SELECT rating, COUNT(*)::int as count FROM quiz_ratings GROUP BY rating ORDER BY rating`),
+  ]);
+  return { overall, lastMonth, lastDay, histLastDay, histLastMonth, histAllTime };
+}
 
 function Stars({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'md' }) {
   const full = Math.round(rating);
