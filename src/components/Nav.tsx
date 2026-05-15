@@ -14,6 +14,7 @@ const links = [
   { href: '/quizzes', label: 'Quizzes' },
   { href: '/results', label: 'Results' },
   { href: '/ratings', label: 'Ratings' },
+  { href: '/rate-limits', label: 'Rate Limits' },
   { href: '/events', label: 'Events' },
   { href: '/voices', label: 'Voices' },
   { href: '/offense', label: 'Offense' },
