@@ -1,5 +1,5 @@
 import { query } from '@/lib/db';
-import { formatDate } from '@/lib/format';
+import { formatDate, timeAgo } from '@/lib/format';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -109,7 +109,10 @@ export default async function RateLimitsPage({ searchParams }: Props) {
             <tbody>
               {rows.map((r: Record<string, unknown>) => (
                 <tr key={r.id as number} className="border-b last:border-0 hover:bg-muted/50">
-                  <td className="px-3 py-2 tabular-nums whitespace-nowrap">{formatDate(r.created_at as string)}</td>
+                  <td className="px-3 py-2 tabular-nums whitespace-nowrap">
+                    {formatDate(r.created_at as string)}
+                    <span className="ml-2 text-xs text-muted-foreground">({timeAgo(r.created_at as string)})</span>
+                  </td>
                   <td className="px-3 py-2">
                     {r.user_id != null ? (
                       <Link href={`/users/${r.user_id}`} className="text-primary hover:underline">
